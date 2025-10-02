@@ -4,8 +4,63 @@ import { useState, useRef, useEffect } from 'react';
 import ChatWindow from '@/components/ChatWindow';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import LanguageInstructions from '@/components/LanguageInstructions';
-import { Message } from '@/types';
+import { Message, Language } from '@/types';
 import { speakText, cancelSpeech } from '@/utils/tts';
+
+// UI Translation system
+const uiTranslations = {
+  en: {
+    title: "AI Companion",
+    subtitle: "AI-Powered Weather Chatbot",
+    placeholder: "Type your message here...",
+    voiceInput: "🎤 Voice Input",
+    readAloud: "🔊 Read Aloud",
+    send: "📤 Send",
+    stopReading: "Stop Reading",
+    readLastMessage: "Read Last Message",
+    wait: "Wait",
+    rateLimitMessage: (seconds: number) => `Please wait. You can ask again in ${seconds} second${seconds > 1 ? 's' : ''}.⏱️`,
+    languages: {
+      en: "English",
+      ja: "Japanese", 
+      hi: "Hindi"
+    }
+  },
+  ja: {
+    title: "AI コンパニオン",
+    subtitle: "AI搭載天気チャットボット",
+    placeholder: "ここにメッセージを入力してください...",
+    voiceInput: "🎤 音声入力",
+    readAloud: "🔊 読み上げ",
+    send: "📤 送信",
+    stopReading: "読み上げを停止",
+    readLastMessage: "最後のメッセージを読み上げ",
+    wait: "待機",
+    rateLimitMessage: (seconds: number) => `少し待ってください。あと${seconds}秒後に質問できます。⏱️`,
+    languages: {
+      en: "英語",
+      ja: "日本語",
+      hi: "ヒンディー語"
+    }
+  },
+  hi: {
+    title: "AI साथी",
+    subtitle: "AI-संचालित मौसम चैटबॉट",
+    placeholder: "यहाँ अपना संदेश टाइप करें...",
+    voiceInput: "🎤 आवाज़ इनपुट",
+    readAloud: "🔊 जोर से पढ़ें",
+    send: "📤 भेजें",
+    stopReading: "पढ़ना बंद करें",
+    readLastMessage: "अंतिम संदेश पढ़ें",
+    wait: "प्रतीक्षा करें",
+    rateLimitMessage: (seconds: number) => `कृपया प्रतीक्षा करें। आप ${seconds} सेकंड बाद फिर से पूछ सकते हैं।⏱️`,
+    languages: {
+      en: "अंग्रेजी",
+      ja: "जापानी",
+      hi: "हिंदी"
+    }
+  }
+};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -14,7 +69,18 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [lastRequestTime, setLastRequestTime] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [uiLanguage, setUiLanguage] = useState<Language>('ja'); // UI language state
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Helper function to get UI text in current language
+  const getUIText = (key: string) => {
+    const keys = key.split('.');
+    let value: any = uiTranslations[uiLanguage];
+    for (const k of keys) {
+      value = value?.[k];
+    }
+    return value || key;
+  };
 
   useEffect(() => {
     // Auto-resize textarea
@@ -33,7 +99,7 @@ export default function Home() {
       const waitTime = Math.ceil((3000 - (now - lastRequestTime)) / 1000);
       const rateLimitMessage: Message = {
         id: Date.now().toString(),
-        text: `少し待ってください。あと${waitTime}秒後に質問できます。⏱️`,
+        text: uiTranslations[uiLanguage].rateLimitMessage(waitTime),
         isUser: false,
         timestamp: new Date(),
       };
@@ -167,20 +233,31 @@ export default function Home() {
             <span className="text-sm font-bold text-gray-900">🤖</span>
           </div>
           <div>
-            <h1 className="text-lg font-semibold">AI Companion</h1>
-            <p className="text-sm text-gray-400">AI-Powered Weather Chatbot</p>
+            <h1 className="text-lg font-semibold">{getUIText('title')}</h1>
+            <p className="text-sm text-gray-400">{getUIText('subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-400">日本語</span>
-          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+          {/* UI Language Selector */}
+          <div className="relative">
+            <select
+              value={uiLanguage}
+              onChange={(e) => setUiLanguage(e.target.value as Language)}
+              className="bg-gray-700 text-white text-sm rounded-md px-3 py-1 border border-gray-600 hover:border-gray-500 focus:border-blue-500 focus:outline-none cursor-pointer"
+            >
+              <option value="en">🇺🇸 {getUIText('languages.en')}</option>
+              <option value="ja">🇯🇵 {getUIText('languages.ja')}</option>
+              <option value="hi">🇮🇳 {getUIText('languages.hi')}</option>
+            </select>
+          </div>
+          <div className="w-2 h-2 bg-green-400 rounded-full" title="System Online"></div>
         </div>
       </header>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-[calc(100vh-80px)]">
         <div className="flex-1 overflow-hidden">
-          <ChatWindow messages={messages} isLoading={isLoading} />
+          <ChatWindow messages={messages} isLoading={isLoading} uiLanguage={uiLanguage} />
         </div>
 
         {/* Input Bar */}
@@ -192,7 +269,7 @@ export default function Home() {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about the weather..."
+                placeholder={getUIText('placeholder')}
                 className="flex-1 bg-transparent text-white placeholder-gray-400 resize-none border-none outline-none px-4 py-2 text-sm max-h-32"
                 rows={1}
                 disabled={isLoading}
@@ -215,7 +292,7 @@ export default function Home() {
                     ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
                     : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-400 hover:to-gray-500 disabled:from-gray-600 disabled:to-gray-700 text-white'
                 }`}
-                title={isSpeaking ? '読み上げを停止' : '最後のメッセージを読み上げ'}
+                title={isSpeaking ? getUIText('stopReading') : getUIText('readLastMessage')}
               >
                 {isSpeaking ? (
                   <svg className="w-4 h-4 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
@@ -234,8 +311,8 @@ export default function Home() {
                 className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:from-gray-600 disabled:to-gray-600 text-white p-2 rounded-full transition-all duration-200 flex items-center justify-center min-w-[36px] min-h-[36px]"
                 title={
                   Date.now() - lastRequestTime < 3000 
-                    ? `Wait ${Math.ceil((3000 - (Date.now() - lastRequestTime)) / 1000)}s`
-                    : 'Send'
+                    ? `${getUIText('wait')} ${Math.ceil((3000 - (Date.now() - lastRequestTime)) / 1000)}s`
+                    : getUIText('send')
                 }
               >
                 <svg
@@ -256,15 +333,13 @@ export default function Home() {
           </form>
           
           <div className="flex justify-center mt-2 text-xs text-gray-400 space-x-4">
-            <span>🎤 Voice Input</span>
-            <span>🔊 Read Aloud</span>
-            <span>📤 Send</span>
+            <span>{getUIText('voiceInput')}</span>
+            <span>{getUIText('readAloud')}</span>
+            <span>{getUIText('send')}</span>
           </div>
         </div>
       </div>
       
-      {/* Language Instructions Component */}
-      <LanguageInstructions />
     </div>
   );
 }

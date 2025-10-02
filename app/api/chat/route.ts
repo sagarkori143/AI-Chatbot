@@ -128,7 +128,7 @@ ${currentPrompt.jsonNote}`;
           await new Promise(resolve => setTimeout(resolve, delay));
         }
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -143,7 +143,7 @@ ${currentPrompt.jsonNote}`;
               temperature: 0.7,
               topK: 40,
               topP: 0.95,
-              maxOutputTokens: 500,
+              maxOutputTokens: 1500,
             }
           }),
         });
@@ -165,9 +165,22 @@ ${currentPrompt.jsonNote}`;
         }
 
         const data = await response.json();
+        console.log('Gemini API response:', JSON.stringify(data, null, 2));
+        
         const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
         
         if (!content) {
+          console.error('No content found in Gemini response. Full response:', data);
+          // Check if there's an error in the response
+          if (data.error) {
+            throw new Error(`Gemini API error: ${data.error.message || JSON.stringify(data.error)}`);
+          }
+          if (data.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+            throw new Error(`Response was cut off due to token limit. Increase maxOutputTokens in the request.`);
+          }
+          if (data.candidates?.[0]?.finishReason) {
+            throw new Error(`Gemini response finished with reason: ${data.candidates[0].finishReason}`);
+          }
           throw new Error('No content in Gemini response');
         }
 
