@@ -4,15 +4,14 @@ import { detectLanguage, Language } from '@/utils/translation';
 
 // Helper function to extract city name from user text
 function extractCityFromText(text: string): string {
-  // Common patterns for city mentions
+    console.log('DEBUG: Extracting city from:', text);  // Common patterns for city mentions
   const cityPatterns = [
     /(?:weather in|weather at|weather for|how is the weather in|what's the weather in|what is the weather in)\s+([a-zA-Z\s,]+?)(?:\?|$|today|tomorrow|now)/i,
     /(?:temperature in|temperature at|temperature for|how hot is it in|how cold is it in)\s+([a-zA-Z\s,]+?)(?:\?|$|today|tomorrow|now)/i,
     /(?:forecast for|forecast in|forecast at)\s+([a-zA-Z\s,]+?)(?:\?|$|today|tomorrow|now)/i,
     /([a-zA-Z\s,]+?)(?:\s+weather|\s+temperature|\s+forecast)(?:\?|$|today|tomorrow|now)/i,
-    // Japanese patterns
-    /([あ-んア-ン一-龯\s]+?)(?:の天気|の気温|の予報)/,
-    /(?:の天気|の気温|の予報).*?([あ-んア-ン一-龯\s]+)/,
+    // Japanese patterns - fixed to be more specific
+    /([あ-んア-ン一-龯]+)の(?:天気|気温|予報)/,
     // Hindi patterns  
     /([अ-ह\s]+?)(?:\s+में\s+मौसम|\s+का\s+मौसम)/,
     /(?:मौसम|तापमान).*?([अ-ह\s]+?)(?:\s+में|$)/
@@ -22,10 +21,13 @@ function extractCityFromText(text: string): string {
     const match = text.match(pattern);
     if (match && match[1]) {
       let city = match[1].trim();
+      console.log('Pattern matched city:', city);
+      
       // Clean up common words and non-city phrases
-      city = city.replace(/\b(today|tomorrow|now|please|कृपया|お願いします|the|about|me|tell)\b/gi, '').trim();
+      city = city.replace(/\b(today|tomorrow|now|please|कृपया|お願いします|the|about|me|tell|はどう|どう|について)\b/gi, '').trim();
       // Only accept valid looking city names (letters, spaces, some punctuation)
-      if (city.length > 2 && city.length < 50 && /^[a-zA-Zあ-んア-ン一-龯अ-ह\s,.-]+$/.test(city)) {
+      if (city.length > 1 && city.length < 50 && /^[a-zA-Zあ-んア-ン一-龯अ-ह\s,.-]+$/.test(city)) {
+        console.log('Returning extracted city:', city);
         return city;
       }
     }
@@ -39,13 +41,35 @@ function extractCityFromText(text: string): string {
   ];
   
   for (const city of knownCities) {
-    if (text.toLowerCase().includes(city.toLowerCase())) {
+    if (text.includes(city)) {
+      console.log('Found known city:', city);
       return city;
     }
   }
   
+  console.log('No city found, defaulting to Tokyo');
   // Default fallback
   return 'Tokyo';
+}
+
+// Function to normalize city names for weather API
+function normalizeCityForWeatherAPI(city: string): string {
+  const cityMappings: { [key: string]: string } = {
+    '東京': 'Tokyo',
+    '大阪': 'Osaka', 
+    '京都': 'Kyoto',
+    '名古屋': 'Nagoya',
+    '横浜': 'Yokohama',
+    '福岡': 'Fukuoka',
+    '札幌': 'Sapporo',
+    'दिल्ली': 'Delhi',
+    'मुंबई': 'Mumbai',
+    'कोलकाता': 'Kolkata',
+    'चेन्नई': 'Chennai',
+    'बेंगलुरु': 'Bangalore'
+  };
+  
+  return cityMappings[city] || city;
 }
 
 export async function POST(request: NextRequest) {
@@ -69,7 +93,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract city from user text or use provided location
-    const cityToQuery = location || extractCityFromText(text);
+    const extractedCity = location || extractCityFromText(text);
+    const cityToQuery = normalizeCityForWeatherAPI(extractedCity);
+    console.log('City to query weather API:', cityToQuery, '(from:', extractedCity, ')');
 
     // Fetch weather data
     let weatherData = null;
@@ -79,6 +105,9 @@ export async function POST(request: NextRequest) {
       );
       if (weatherResponse.ok) {
         weatherData = await weatherResponse.json();
+        console.log('Weather data retrieved for:', cityToQuery);
+      } else {
+        console.warn('Weather API returned non-OK status:', weatherResponse.status);
       }
     } catch (error) {
       console.warn('Could not fetch weather data:', error);
@@ -102,6 +131,8 @@ RULES:
 3. Always include practical precautions and safety advice
 4. Give specific clothing recommendations based on weather
 5. Keep responses concise but comprehensive
+6. NEVER mention sports, activities like cricket, or unrelated topics unless the user specifically asks about weather for that activity
+7. Focus strictly on weather conditions, temperatures, precipitation, and related advice
 
 IMPORTANT: ${languageInstructions[detectedLanguage] || languageInstructions.en}`;
     
