@@ -127,8 +127,8 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          text: text.trim(),
-          location: 'Tokyo' // Default location, could be made dynamic
+          text: text.trim()
+          // Location will be dynamically extracted from the text by the API
         }),
       });
 

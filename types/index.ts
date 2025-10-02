@@ -4,12 +4,6 @@ export interface Message {
   isUser: boolean;
   timestamp: Date;
   meta?: MessageMeta;
-  translations?: {
-    [key in Language]?: {
-      text: string;
-      meta?: MessageMeta;
-    };
-  };
 }
 
 export interface MessageMeta {
